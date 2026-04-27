@@ -1,0 +1,26 @@
+# Cron job to refresh stock data with alphabetical batching
+# Add this to your crontab with: crontab -e
+
+# Option 1: S&P 500 only (current setup - every 30 minutes)
+*/30 9-15 * * 1-5 cd /Users/kuljitjagpal/CascadeProjects/windsurf-project-2/stock-screener && node -r ts-node/register scripts/refresh-stocks.ts sp500=true >> logs/refresh.log 2>&1
+
+# Option 2: Full US market with alphabetical batching (8 batches)
+# Each batch refreshed every 2 hours (full refresh every 16 hours)
+0 9,11,13,15 * * 1-5 cd /Users/kuljitjagpal/CascadeProjects/windsurf-project-2/stock-screener && node -r ts-node/register scripts/refresh-stocks.ts batch=A-C >> logs/refresh.log 2>&1
+30 9,11,13,15 * * 1-5 cd /Users/kuljitjagpal/CascadeProjects/windsurf-project-2/stock-screener && node -r ts-node/register scripts/refresh-stocks.ts batch=D-F >> logs/refresh.log 2>&1
+0 10,12,14,16 * * 1-5 cd /Users/kuljitjagpal/CascadeProjects/windsurf-project-2/stock-screener && node -r ts-node/register scripts/refresh-stocks.ts batch=G-I >> logs/refresh.log 2>&1
+30 10,12,14,16 * * 1-5 cd /Users/kuljitjagpal/CascadeProjects/windsurf-project-2/stock-screener && node -r ts-node/register scripts/refresh-stocks.ts batch=J-L >> logs/refresh.log 2>&1
+0 9,11,13,15 * * 1-5 cd /Users/kuljitjagpal/CascadeProjects/windsurf-project-2/stock-screener && node -r ts-node/register scripts/refresh-stocks.ts batch=M-O >> logs/refresh.log 2>&1
+30 9,11,13,15 * * 1-5 cd /Users/kuljitjagpal/CascadeProjects/windsurf-project-2/stock-screener && node -r ts-node/register scripts/refresh-stocks.ts batch=P-R >> logs/refresh.log 2>&1
+0 10,12,14,16 * * 1-5 cd /Users/kuljitjagpal/CascadeProjects/windsurf-project-2/stock-screener && node -r ts-node/register scripts/refresh-stocks.ts batch=S-U >> logs/refresh.log 2>&1
+30 10,12,14,16 * * 1-5 cd /Users/kuljitjagpal/CascadeProjects/windsurf-project-2/stock-screener && node -r ts-node/register scripts/refresh-stocks.ts batch=V-Z >> logs/refresh.log 2>&1
+
+# Batch ranges:
+# A-C: Symbols starting with A, B, C
+# D-F: Symbols starting with D, E, F
+# G-I: Symbols starting with G, H, I
+# J-L: Symbols starting with J, K, L
+# M-O: Symbols starting with M, N, O
+# P-R: Symbols starting with P, Q, R
+# S-U: Symbols starting with S, T, U
+# V-Z: Symbols starting with V, W, X, Y, Z
