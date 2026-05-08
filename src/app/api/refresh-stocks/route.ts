@@ -94,22 +94,22 @@ function getRecommendation(score: number): 'Strong Buy' | 'Buy' | 'Hold' | 'Sell
 }
 
 async function fetchSP500Symbols(): Promise<string[]> {
-  const apiKey = process.env.NEXT_PUBLIC_FMP_API_KEY;
-  if (!apiKey) {
-    throw new Error('FMP API key not set');
-  }
+  // Hardcoded list of major S&P 500 symbols to avoid FMP API 403 errors
+  const sp500Symbols = [
+    'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'TSLA', 'NVDA', 'META', 'JPM', 'V',
+    'WMT', 'PG', 'JNJ', 'UNH', 'HD', 'MA', 'DIS', 'BAC', 'XOM', 'CVX',
+    'KO', 'PEP', 'COST', 'MRK', 'ABT', 'LLY', 'T', 'AVGO', 'ADBE',
+    'CRM', 'ORCL', 'CSCO', 'ACN', 'NKE', 'NFLX', 'AMD', 'INTC', 'QCOM',
+    'IBM', 'HON', 'TXN', 'CAT', 'GE', 'BA', 'MMM', 'RTX', 'LMT', 'UPS',
+    'UNP', 'GS', 'MS', 'BLK', 'SCHW', 'C', 'WFC', 'AXP', 'COP', 'CVX',
+    'XOM', 'SLB', 'HAL', 'MCD', 'SBUX', 'NKE', 'LULU', 'TJX', 'HD', 'LOW',
+    'TGT', 'WMT', 'COST', 'AMZN', 'BJ', 'KR', 'GIS', 'K', 'GIS', 'KO', 'PEP',
+    'MDLZ', 'CL', 'PG', 'JNJ', 'PFE', 'MRK', 'ABT', 'LLY', 'BMY', 'GILD',
+    'AMGN', 'GILD', 'BIIB', 'REGN', 'VRTX', 'MRNA', 'PFE', 'JNJ', 'ABT', 'MDT',
+    'ISRG', 'SYK', 'BSX', 'ABT', 'MDT', 'JNJ', 'T', 'MRK', 'PFE', 'GILD'
+  ];
   
-  try {
-    const response = await fetch(`https://financialmodelingprep.com/api/v3/sp500_constituent?apikey=${apiKey}`);
-    if (!response.ok) {
-      throw new Error(`FMP API failed: ${response.status}`);
-    }
-    const data = await response.json();
-    return data.map((item: any) => item.symbol) || [];
-  } catch (error) {
-    console.error('Error fetching S&P 500 symbols from FMP:', error);
-    throw error;
-  }
+  return sp500Symbols;
 }
 
 async function fetchWithRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
