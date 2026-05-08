@@ -94,21 +94,20 @@ function getRecommendation(score: number): 'Strong Buy' | 'Buy' | 'Hold' | 'Sell
 }
 
 async function fetchSP500Symbols(): Promise<string[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://stock-screener-esnlcgx4x-kuljit-s-projects.vercel.app';
+  const apiKey = process.env.NEXT_PUBLIC_FMP_API_KEY;
+  if (!apiKey) {
+    throw new Error('FMP API key not set');
+  }
+  
   try {
-    const response = await fetch(`${baseUrl}/api/sp500-symbols`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetch(`https://financialmodelingprep.com/api/v3/sp500_constituent?apikey=${apiKey}`);
     if (!response.ok) {
-      throw new Error(`SP500 symbols API failed: ${response.status}`);
+      throw new Error(`FMP API failed: ${response.status}`);
     }
     const data = await response.json();
-    return data.symbols || [];
+    return data.map((item: any) => item.symbol) || [];
   } catch (error) {
-    console.error('Error fetching S&P 500 symbols:', error);
+    console.error('Error fetching S&P 500 symbols from FMP:', error);
     throw error;
   }
 }
