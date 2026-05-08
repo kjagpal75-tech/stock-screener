@@ -9,7 +9,7 @@ interface SymbolWithExchange {
 }
 
 async function fetchUSSymbols(batch?: string): Promise<SymbolWithExchange[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://stock-screener-esnlcgx4x-kuljit-s-projects.vercel.app';
   const url = batch ? `${baseUrl}/api/us-symbols?batch=${batch}` : `${baseUrl}/api/us-symbols`;
   const response = await fetch(url);
   const data = await response.json();
@@ -94,7 +94,7 @@ function getRecommendation(score: number): 'Strong Buy' | 'Buy' | 'Hold' | 'Sell
 }
 
 async function fetchSP500Symbols(): Promise<string[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://stock-screener-esnlcgx4x-kuljit-s-projects.vercel.app';
   try {
     const response = await fetch(`${baseUrl}/api/sp500-symbols`, {
       method: 'GET',
