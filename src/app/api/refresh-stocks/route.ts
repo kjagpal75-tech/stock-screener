@@ -94,7 +94,7 @@ function getRecommendation(score: number): 'Strong Buy' | 'Buy' | 'Hold' | 'Sell
 }
 
 async function fetchSP500Symbols(): Promise<string[]> {
-  // Hardcoded list of major S&P 500 symbols to avoid FMP API 403 errors
+  // Expanded hardcoded list of S&P 500 symbols with batching in mind
   const sp500Symbols = [
     'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'TSLA', 'NVDA', 'META', 'JPM', 'V',
     'WMT', 'PG', 'JNJ', 'UNH', 'HD', 'MA', 'DIS', 'BAC', 'XOM', 'CVX',
@@ -106,7 +106,23 @@ async function fetchSP500Symbols(): Promise<string[]> {
     'TGT', 'WMT', 'COST', 'AMZN', 'BJ', 'KR', 'GIS', 'K', 'GIS', 'KO', 'PEP',
     'MDLZ', 'CL', 'PG', 'JNJ', 'PFE', 'MRK', 'ABT', 'LLY', 'BMY', 'GILD',
     'AMGN', 'GILD', 'BIIB', 'REGN', 'VRTX', 'MRNA', 'PFE', 'JNJ', 'ABT', 'MDT',
-    'ISRG', 'SYK', 'BSX', 'ABT', 'MDT', 'JNJ', 'T', 'MRK', 'PFE', 'GILD'
+    'ISRG', 'SYK', 'BSX', 'ABT', 'MDT', 'JNJ', 'T', 'MRK', 'PFE', 'GILD',
+    'DHR', 'PLD', 'ADP', 'CB', 'ICE', 'PYPL', 'INTU', 'NOW', 'ADI', 'FIS',
+    'MU', 'TXN', 'QCOM', 'AMD', 'NVDA', 'INTC', 'CSCO', 'ORCL', 'CRM', 'ADBE',
+    'AVGO', 'NFLX', 'META', 'GOOGL', 'MSFT', 'AAPL', 'AMZN', 'TSLA', 'NVDA', 'META',
+    'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'BLK', 'AXP', 'COF', 'MA', 'V',
+    'PYPL', 'SQ', 'FIS', 'FISV', 'GPN', 'V', 'MA', 'AXP', 'DFS', 'COF',
+    'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'BLK', 'SCHW', 'ICE', 'CBOE',
+    'NDAQ', 'CME', 'ICE', 'CBOE', 'MKT', 'SPGI', 'MCO', 'Fitch', 'S&P',
+    'Moody', 'DBRS', 'Kroll', 'Egan-Jones', 'HR', 'AM', 'TRV', 'ALL', 'CB',
+    'AIG', 'MET', 'PRU', 'PFG', 'AFL', 'CINF', 'HIG', 'L', 'WRB', 'MKL',
+    'AON', 'MMC', 'AJG', 'AON', 'WLTW', 'EFX', 'EXPE', 'BKNG', 'ABNB', 'CZR',
+    'MGM', 'LVS', 'WYNN', 'RCL', 'CCL', 'NCLH', 'CARN', 'PLAY', 'DKNG', 'PENN',
+    'LYV', 'DIS', 'NFLX', 'ROKU', 'TSLA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META',
+    'NVDA', 'AMD', 'INTC', 'QCOM', 'CSCO', 'ORCL', 'CRM', 'ADBE', 'AVGO', 'TXN',
+    'MU', 'ADI', 'MRVL', 'LRCX', 'KLAC', 'AMAT', 'ASML', 'TSM', 'SMH', 'SOXX',
+    'VGT', 'XLK', 'XLF', 'XLE', 'XLI', 'XLV', 'XLU', 'XLP', 'XLY', 'XLRE',
+    'SPY', 'IVV', 'VOO', 'VTI', 'QQQ', 'IWM', 'EFA', 'EEM', 'GLD', 'SLV'
   ];
   
   return sp500Symbols;
@@ -142,127 +158,139 @@ export async function GET(request: Request) {
     let processed = 0;
     let errors = 0;
 
-    // Fetch and update each stock
-    for (const item of symbols) {
-      const symbol = item.symbol;
-      const exchange = item.exchange;
+    // Process symbols in batches with rate limiting
+    const batchSize = 20; // Process 20 stocks at a time
+    const batchDelay = 2000; // 2 second delay between batches
+    
+    for (let i = 0; i < symbols.length; i += batchSize) {
+      const batch = symbols.slice(i, i + batchSize);
       
-      try {
-        const quote = await fetchWithRetry(() => yahooFinance.quote(symbol));
-        
-        // Fetch quoteSummary for additional metrics
-        let sector = 'Unknown';
-        let industry = 'Unknown';
-        let debtToEquity = 0.5;
-        let interestCoverage = 5;
-        
+      // Process each stock in the batch
+      for (const item of batch) {
+        const symbol = typeof item === 'string' ? item : item.symbol;
         try {
-          const summary = await fetchWithRetry(() => yahooFinance.quoteSummary(symbol, { modules: ['assetProfile', 'financialData'] })) as any;
+          const quote = await fetchWithRetry(() => yahooFinance.quote(symbol));
           
-          if (summary.assetProfile) {
-            sector = summary.assetProfile.sector || 'Unknown';
-            industry = summary.assetProfile.industry || 'Unknown';
+          // Fetch quoteSummary for additional metrics
+          let sector = 'Unknown';
+          let industry = 'Unknown';
+          let debtToEquity = 0.5;
+          let interestCoverage = 5;
+          
+          try {
+            const summary = await fetchWithRetry(() => yahooFinance.quoteSummary(symbol, { modules: ['assetProfile', 'financialData'] })) as any;
+            
+            if (summary.assetProfile) {
+              sector = summary.assetProfile.sector || 'Unknown';
+              industry = summary.assetProfile.industry || 'Unknown';
+            }
+            
+            if (summary.financialData) {
+              debtToEquity = summary.financialData.debtToEquity || 0.5;
+              interestCoverage = summary.financialData.interestCoverage || 5;
+            }
+          } catch (summaryError) {
+            console.warn(`Failed to fetch quoteSummary for ${symbol}, using defaults`);
           }
           
-          if (summary.financialData) {
-            debtToEquity = summary.financialData.debtToEquity || 0.5;
-            interestCoverage = summary.financialData.interestCoverage || 5;
+          const changePercent = quote.regularMarketChangePercent || 0;
+          const relativeStrength = Math.min(100, Math.max(0, 50 + (changePercent - sp500Change) * 2));
+
+          const stockWithoutScore: Omit<Stock, 'score' | 'recommendation'> = {
+            symbol: quote.symbol,
+            name: quote.shortName || quote.longName || quote.symbol,
+            price: quote.regularMarketPrice || 0,
+            change: quote.regularMarketChange || 0,
+            changePercent: changePercent,
+            volume: quote.regularMarketVolume || 0,
+            marketCap: quote.marketCap || 0,
+            pe: quote.trailingPE || 0,
+            eps: quote.epsTrailingTwelveMonths || 0,
+            high52Week: quote.fiftyTwoWeekHigh || 0,
+            low52Week: quote.fiftyTwoWeekLow || 0,
+            avgVolume: quote.averageDailyVolume3Month || quote.regularMarketVolume || 0,
+            beta: quote.beta || 1,
+            sector,
+            industry,
+            debtToEquity,
+            relativeStrength: Math.round(relativeStrength),
+            interestCoverage,
+          };
+
+          const score = calculateStockScore(stockWithoutScore);
+          const recommendation = getRecommendation(score);
+
+          // Upsert to database
+          await query(
+            `INSERT INTO stocks (
+              symbol, name, price, change, change_percent, volume, market_cap,
+              pe, eps, high_52_week, low_52_week, avg_volume, beta, sector, industry,
+              debt_to_equity, relative_strength, interest_coverage, score, recommendation,
+              exchange
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+            ON CONFLICT (symbol) DO UPDATE SET
+              name = EXCLUDED.name,
+              price = EXCLUDED.price,
+              change = EXCLUDED.change,
+              change_percent = EXCLUDED.change_percent,
+              volume = EXCLUDED.volume,
+              market_cap = EXCLUDED.market_cap,
+              pe = EXCLUDED.pe,
+              eps = EXCLUDED.eps,
+              high_52_week = EXCLUDED.high_52_week,
+              low_52_week = EXCLUDED.low_52_week,
+              avg_volume = EXCLUDED.avg_volume,
+              beta = EXCLUDED.beta,
+              sector = EXCLUDED.sector,
+              industry = EXCLUDED.industry,
+              debt_to_equity = EXCLUDED.debt_to_equity,
+              relative_strength = EXCLUDED.relative_strength,
+              interest_coverage = EXCLUDED.interest_coverage,
+              score = EXCLUDED.score,
+              recommendation = EXCLUDED.recommendation,
+              exchange = EXCLUDED.exchange,
+              updated_at = CURRENT_TIMESTAMP`,
+            [
+              stockWithoutScore.symbol,
+              stockWithoutScore.name,
+              stockWithoutScore.price,
+              stockWithoutScore.change,
+              stockWithoutScore.changePercent,
+              stockWithoutScore.volume,
+              stockWithoutScore.marketCap,
+              stockWithoutScore.pe,
+              stockWithoutScore.eps,
+              stockWithoutScore.high52Week,
+              stockWithoutScore.low52Week,
+              stockWithoutScore.avgVolume,
+              stockWithoutScore.beta,
+              stockWithoutScore.sector,
+              stockWithoutScore.industry,
+              stockWithoutScore.debtToEquity,
+              stockWithoutScore.relativeStrength,
+              stockWithoutScore.interestCoverage,
+              score,
+              recommendation,
+              'S&P 500',
+            ]
+          );
+
+          processed++;
+          
+          // Log progress every 50 stocks
+          if (processed % 50 === 0) {
+            console.log(`Processed ${processed}/${symbols.length} stocks`);
           }
-        } catch (summaryError) {
-          console.warn(`Failed to fetch quoteSummary for ${symbol}, using defaults`);
+        } catch (error) {
+          console.error(`Failed to process ${symbol}:`, error);
+          errors++;
         }
-        
-        const changePercent = quote.regularMarketChangePercent || 0;
-        const relativeStrength = Math.min(100, Math.max(0, 50 + (changePercent - sp500Change) * 2));
-
-        const stockWithoutScore: Omit<Stock, 'score' | 'recommendation'> = {
-          symbol: quote.symbol,
-          name: quote.shortName || quote.longName || quote.symbol,
-          price: quote.regularMarketPrice || 0,
-          change: quote.regularMarketChange || 0,
-          changePercent: changePercent,
-          volume: quote.regularMarketVolume || 0,
-          marketCap: quote.marketCap || 0,
-          pe: quote.trailingPE || 0,
-          eps: quote.epsTrailingTwelveMonths || 0,
-          high52Week: quote.fiftyTwoWeekHigh || 0,
-          low52Week: quote.fiftyTwoWeekLow || 0,
-          avgVolume: quote.averageDailyVolume3Month || quote.regularMarketVolume || 0,
-          beta: quote.beta || 1,
-          sector,
-          industry,
-          debtToEquity,
-          relativeStrength: Math.round(relativeStrength),
-          interestCoverage,
-        };
-
-        const score = calculateStockScore(stockWithoutScore);
-        const recommendation = getRecommendation(score);
-
-        // Upsert to database
-        await query(
-          `INSERT INTO stocks (
-            symbol, name, price, change, change_percent, volume, market_cap,
-            pe, eps, high_52_week, low_52_week, avg_volume, beta, sector, industry,
-            debt_to_equity, relative_strength, interest_coverage, score, recommendation,
-            exchange
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-          ON CONFLICT (symbol) DO UPDATE SET
-            name = EXCLUDED.name,
-            price = EXCLUDED.price,
-            change = EXCLUDED.change,
-            change_percent = EXCLUDED.change_percent,
-            volume = EXCLUDED.volume,
-            market_cap = EXCLUDED.market_cap,
-            pe = EXCLUDED.pe,
-            eps = EXCLUDED.eps,
-            high_52_week = EXCLUDED.high_52_week,
-            low_52_week = EXCLUDED.low_52_week,
-            avg_volume = EXCLUDED.avg_volume,
-            beta = EXCLUDED.beta,
-            sector = EXCLUDED.sector,
-            industry = EXCLUDED.industry,
-            debt_to_equity = EXCLUDED.debt_to_equity,
-            relative_strength = EXCLUDED.relative_strength,
-            interest_coverage = EXCLUDED.interest_coverage,
-            score = EXCLUDED.score,
-            recommendation = EXCLUDED.recommendation,
-            exchange = EXCLUDED.exchange,
-            updated_at = CURRENT_TIMESTAMP`,
-          [
-            stockWithoutScore.symbol,
-            stockWithoutScore.name,
-            stockWithoutScore.price,
-            stockWithoutScore.change,
-            stockWithoutScore.changePercent,
-            stockWithoutScore.volume,
-            stockWithoutScore.marketCap,
-            stockWithoutScore.pe,
-            stockWithoutScore.eps,
-            stockWithoutScore.high52Week,
-            stockWithoutScore.low52Week,
-            stockWithoutScore.avgVolume,
-            stockWithoutScore.beta,
-            stockWithoutScore.sector,
-            stockWithoutScore.industry,
-            stockWithoutScore.debtToEquity,
-            stockWithoutScore.relativeStrength,
-            stockWithoutScore.interestCoverage,
-            score,
-            recommendation,
-            exchange,
-          ]
-        );
-
-        processed++;
-        
-        // Log progress every 50 stocks
-        if (processed % 50 === 0) {
-          console.log(`Processed ${processed}/${symbols.length} stocks`);
-        }
-      } catch (error) {
-        console.error(`Failed to process ${symbol}:`, error);
-        errors++;
+      }
+      
+      // Rate limiting: delay between batches
+      if (i + batchSize < symbols.length) {
+        console.log(`Batch completed. Waiting ${batchDelay}ms before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, batchDelay));
       }
     }
 
