@@ -95,9 +95,22 @@ function getRecommendation(score: number): 'Strong Buy' | 'Buy' | 'Hold' | 'Sell
 
 async function fetchSP500Symbols(): Promise<string[]> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  const response = await fetch(`${baseUrl}/api/sp500-symbols`);
-  const data = await response.json();
-  return data.symbols;
+  try {
+    const response = await fetch(`${baseUrl}/api/sp500-symbols`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`SP500 symbols API failed: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.symbols || [];
+  } catch (error) {
+    console.error('Error fetching S&P 500 symbols:', error);
+    throw error;
+  }
 }
 
 async function fetchWithRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
